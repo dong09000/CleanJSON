@@ -17,8 +17,8 @@
 To run the example project, clone the repo, and run `pod install` from the Example directory first.
 
 ## Requirements
-* iOS 9.0
-* Swift 4.2
+* iOS 9.0 +
+* Swift 4.2 +
 
 ## Installation
 
@@ -155,6 +155,39 @@ provider.rx.request(.userProfile("ashfurrow"))
             // do someting
         case let .error(error):
             print(error)
+        }
+    }
+```
+
+### 项目中使用建议
+
+```swift
+@objc func loginBtnOnClick(btn: UIButton) {
+        // OASProvider 是基于Moya自定义的带插件的provider
+        OASProvider.request(.login(LoginParam(nameTextFiled.text!,pwdTextFiled.text!))) { (result) in
+            // 获取到请求结果之后就是解析，当然可以考虑把 JSONDecoder严格解析 与 CleanJSONDecoder 做一层封装 or 桥接
+            switch result {
+            case let .success(moyaResponse):
+                do {
+                    // 严格类型的解析，若后端给的数据与wiki不符合，会触发catch
+                    let userInfo = try moyaResponse.map(UserInfo.self, atKeyPath: "data", using: JSONDecoder(), failsOnEmptyData: true)
+                    let isLogin = UserInfoManager.sharedInstance.loginWithUserInfo(userInfo)
+                    debugPrint(isLogin)
+                } catch {
+                    // 此处需要上报错误日志 -> 提醒后端数据出错误
+                    debugPrint("\(error)")
+                    
+                    // 当然我们可以直接采取下列做法来满足需求，但是这样不利于后端的稳定性
+                    if let userInfo = try? moyaResponse.map(UserInfo.self, atKeyPath: "data", using: CleanJSONDecoder(), failsOnEmptyData: true) {
+                        let isLogin = UserInfoManager.sharedInstance.loginWithUserInfo(userInfo)
+                        debugPrint(isLogin)
+                    }
+                }
+                
+            case let .failure(error):
+                // 已经在网络层封装了默认的错误HUD提示
+                debugPrint(error.localizedDescription)
+            }
         }
     }
 ```
